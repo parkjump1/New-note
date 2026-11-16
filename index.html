@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하루 목표 기록장</title>
+<meta name="theme-color" content="#F5F0E8">
+<meta name="description" content="매일 아침의 다짐을 기록하고, 생각의 흐름을 분석하는 앱">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="하루 목표">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F0E8; --card:#FFFDF9; --ink:#2A251F; --sub:#7B7168; --line:#E6DDD0;
+  --acc:#D9733A; --acc2:#F2C9A8; --acc3:#FBE9DA; --sage:#6F8A64; --sage2:#DCE6D5; --warn:#B5584A;
+  --serif:'Gowun Batang',serif; --sans:'Noto Sans KR',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#1C1915;--card:#26221D;--ink:#F1EAE0;--sub:#A89E92;--line:#3A342D;--acc:#E8874F;--acc2:#7A4A2C;--acc3:#3A2A1F;--sage:#93AE87;--sage2:#2F3A2A;--warn:#D98375}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:580px;margin:0 auto;padding:20px 16px 80px}
+header h1{font-family:var(--serif);font-size:22px;margin:4px 0 2px;font-weight:700}
+header p{margin:0;color:var(--sub);font-size:13px}
+.tabs{display:flex;gap:4px;background:var(--line);padding:4px;border-radius:12px;margin:18px 0 16px;position:sticky;top:8px;z-index:5}
+.tabs button{flex:1;border:0;background:transparent;padding:9px 0;border-radius:9px;font:500 14px var(--sans);color:var(--sub);cursor:pointer}
+.tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 4px;font-weight:700}
+.card .hint{color:var(--sub);font-size:12.5px;margin:0 0 12px;line-height:1.5}
+.datebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.datebar .big{font-family:var(--serif);font-size:20px;font-weight:700}
+.datebar input{font:13px var(--sans);border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 8px}
+textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font:16px/1.7 var(--serif);background:var(--bg);color:var(--ink);resize:vertical;min-height:96px}
+textarea:focus,input:focus{outline:2px solid var(--acc2);outline-offset:0;border-color:var(--acc)}
+.btn{border:0;background:var(--acc);color:#fff;font:700 14px var(--sans);padding:11px 18px;border-radius:10px;cursor:pointer;margin-top:10px}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc2)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.goaltext{font-family:var(--serif);font-size:18px;line-height:1.75;white-space:pre-wrap;margin:6px 0 2px}
+.scores{display:flex;gap:6px;margin:4px 0 10px}
+.scores button{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 0 6px;cursor:pointer;color:var(--ink);font:500 12px var(--sans)}
+.scores button b{display:block;font-size:17px;margin-bottom:2px}
+.scores button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.status{font-size:12.5px;color:var(--sub);min-height:18px;margin-top:6px}
+.past{border-left:3px solid var(--acc2);padding:2px 0 2px 12px;margin-top:4px}
+.past .d{font-size:12px;color:var(--sub)}
+.past .t{font-family:var(--serif);font-size:15px;line-height:1.6}
+.search{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 14px;font:15px var(--sans);margin-bottom:14px}
+.month{font-size:13px;color:var(--sub);font-weight:700;margin:18px 4px 8px}
+.entry{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.entry .top{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--sub)}
+.entry .g{font-family:var(--serif);font-size:16px;line-height:1.7;margin:6px 0 0;white-space:pre-wrap}
+.entry .r{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.6;border-top:1px dashed var(--line);padding-top:8px}
+.entry .edit{border:0;background:none;color:var(--acc);font:500 12.5px var(--sans);cursor:pointer;padding:0}
+.dots{letter-spacing:2px;color:var(--acc)}
+mark{background:var(--acc3);color:inherit;border-radius:3px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center}
+.stat .n{font-size:22px;font-weight:700}
+.stat .l{font-size:11.5px;color:var(--sub);margin-top:2px}
+.heat{display:grid;grid-template-columns:22px repeat(12,1fr);gap:4px;font-size:10.5px;color:var(--sub)}
+.heat .c{aspect-ratio:1;border-radius:4px;background:var(--line)}
+.heat .c.f{opacity:.25}
+.legend{display:flex;gap:10px;font-size:11.5px;color:var(--sub);margin-top:10px;flex-wrap:wrap;align-items:center}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.bar{display:grid;grid-template-columns:96px 1fr 44px;gap:10px;align-items:center;font-size:13px;margin:8px 0}
+.bar .track{height:10px;background:var(--bg);border-radius:6px;overflow:hidden}
+.bar .fill{height:100%;background:var(--acc);border-radius:6px}
+.bar .v{text-align:right;color:var(--sub);font-size:12px}
+.delta{font-size:11px;margin-left:4px}
+.up{color:var(--sage)} .down{color:var(--warn)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--acc3);border-radius:999px;padding:5px 11px;font-size:13px}
+.chip small{color:var(--sub);margin-left:3px}
+.chip.new{background:var(--sage2)}
+.cols{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:8px}
+.cols .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11.5px;color:var(--sub)}
+.cols .col .b{width:100%;max-width:34px;border-radius:6px 6px 2px 2px;background:var(--acc)}
+.cols .col .val{font-size:11px;margin-bottom:3px;color:var(--ink)}
+.split{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line)}
+.split .a{background:var(--acc)} .split .v{background:var(--sub);opacity:.55}
+.frame-row{display:grid;grid-template-columns:62px 1fr;gap:10px;align-items:center;font-size:12.5px;margin:7px 0}
+.ai{font-size:14.5px;line-height:1.75}
+.ai h4{font-size:14.5px;margin:16px 0 4px;color:var(--acc)}
+.ai h4:first-child{margin-top:0}
+.ai p{margin:4px 0} .ai ul{margin:4px 0;padding-left:18px}
+.empty{color:var(--sub);font-size:13.5px;text-align:center;padding:24px 8px;line-height:1.7}
+.note{font-size:12.5px;color:var(--warn);text-align:center;margin:-6px 0 12px;min-height:0}
+.hidden{display:none!important}
+@media (max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}.bar{grid-template-columns:84px 1fr 40px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>하루 목표 기록장</h1>
+    <p>아침의 다짐을 쌓아, 내 생각이 어디로 흐르는지 봅니다.</p>
+    <button class="btn ghost hidden" id="installBtn" style="margin-top:10px;padding:7px 14px;font-size:13px">📲 앱으로 설치하기</button>
+  </header>
+  <nav class="tabs">
+    <button data-tab="today" class="on">오늘</button>
+    <button data-tab="log">기록</button>
+    <button data-tab="insight">분석</button>
+  </nav>
+  <div class="note" id="note"></div>
+
+  <!-- TODAY -->
+  <section id="tab-today">
+    <div class="datebar">
+      <div class="big" id="dateLabel"></div>
+      <input type="date" id="date" aria-label="날짜 선택">
+    </div>
+
+    <div class="card" id="morningCard">
+      <h2>☀️ 오늘의 목표</h2>
+      <p class="hint">하루를 시작하며, 오늘을 어떤 마음으로 보낼지 한두 문장으로.</p>
+      <div id="goalView" class="hidden">
+        <div class="goaltext" id="goalShown"></div>
+        <button class="btn ghost" id="editGoal">수정</button>
+      </div>
+      <div id="goalEdit">
+        <textarea id="goal" placeholder="작은 거에 실망말고 내가 진짜 원하는 것에 집중하는 하루 만들어보자."></textarea>
+        <button class="btn" id="saveGoal">기록하기</button>
+      </div>
+      <div class="status" id="goalStatus"></div>
+    </div>
+
+    <div class="card" id="eveningCard">
+      <h2>🌙 하루 마무리 <span style="font-weight:400;color:var(--sub);font-size:12.5px">(선택)</span></h2>
+      <p class="hint">퇴근 전에 한 줄 남겨두면, 다짐과 실제 하루를 함께 볼 수 있어요.</p>
+      <textarea id="reflection" placeholder="한 줄 회고 — 오늘 잘 된 것, 흔들렸던 순간, 내일 가져갈 것" style="min-height:70px;font-size:15px"></textarea>
+      <button class="btn" id="saveEve">마무리 저장</button>
+      <div class="status" id="eveStatus"></div>
+    </div>
+
+    <div class="card hidden" id="pastCard">
+      <h2>지난 다짐 돌아보기</h2>
+      <div id="pastList"></div>
+    </div>
+  </section>
+
+  <!-- LOG -->
+  <section id="tab-log" class="hidden">
+    <input class="search" id="q" placeholder="단어로 찾기 (예: 집중, 기쁘게)">
+    <div id="logList"></div>
+    <div class="card" style="margin-top:22px">
+      <h2>💾 백업</h2>
+      <p class="hint">기록은 이 기기 안에만 저장돼요. 휴대폰을 바꾸거나 앱·브라우저 데이터를 지우기 전에 백업 파일을 저장해 두세요. 다른 기기에서 '불러오기'하면 이어서 쓸 수 있어요.</p>
+      <div class="row">
+        <button class="btn ghost" id="bkOut" style="margin:0">백업 파일 저장</button>
+        <label class="btn ghost" style="margin:0;display:inline-block">백업 불러오기<input type="file" id="bkIn" accept=".json,application/json" hidden></label>
+      </div>
+      <div class="status" id="bkStatus"></div>
+    </div>
+  </section>
+
+  <!-- INSIGHT -->
+  <section id="tab-insight" class="hidden">
+    <div class="card" id="exportCard" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px">
+      <div><h2 style="margin:0">공유용 리포트</h2><div class="hint" style="margin:2px 0 0" id="exportStatus">오늘까지의 기록과 분석을 HTML 파일 하나로</div></div>
+      <button class="btn" id="exportBtn" style="margin:0;white-space:nowrap">⬆ 공유·저장</button>
+    </div>
+    <div id="insightEmpty" class="card empty hidden"></div>
+    <div id="insightBody">
+      <div class="stats" id="stats"></div>
+
+      <div class="card">
+        <h2>최근 12주 기록</h2>
+        <p class="hint">진한 칸은 회고까지 남긴 날이에요.</p>
+        <div class="heat" id="heat"></div>
+        <div class="legend">
+          <span><i style="background:var(--line)"></i>기록 없음</span>
+          <span><i style="background:var(--acc2)"></i>목표만</span>
+          <span><i style="background:var(--acc)"></i>목표 + 회고</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>자주 돌아오는 마음</h2>
+        <p class="hint">목표 문장에 담긴 주제별 비중. 화살표는 최근 30일이 그 이전과 비교해 늘었는지/줄었는지예요.</p>
+        <div id="themes"></div>
+      </div>
+
+      <div class="card">
+        <h2>다짐의 방향</h2>
+        <p class="hint">'~하자'처럼 <b style="color:var(--acc)">향하는</b> 말과, '~말고·않기'처럼 <b style="color:var(--sub)">피하는</b> 말의 비율을 달마다 봅니다.</p>
+        <div id="framing"></div>
+      </div>
+
+      <div class="card">
+        <h2>요일별 패턴</h2>
+        <p class="hint">요일마다 목표를 기록한 횟수</p>
+        <div class="cols" id="weekday"></div>
+      </div>
+
+      <div class="card">
+        <h2>내가 자주 쓰는 말</h2>
+        <div class="chips" id="words"></div>
+        <h2 style="margin-top:16px">최근 새로 자주 등장한 말</h2>
+        <p class="hint">최근 30일에 이전보다 눈에 띄게 늘어난 단어예요.</p>
+        <div class="chips" id="newWords"></div>
+      </div>
+
+      <div class="card" id="aiCard">
+        <h2>✨ 생각의 변화 읽어보기</h2>
+        <p class="hint">① 내 기록과 분석 요청문을 복사하고 ② Claude 앱(또는 claude.ai)에 붙여넣은 뒤 ③ 받은 답을 아래에 붙여넣으면, 여기 저장되고 공유 리포트에도 담겨요.</p>
+        <div class="ai" id="aiOut"></div>
+        <div class="aiTools">
+          <div class="row">
+            <button class="btn" id="aiBtn">① 기록 복사하기</button>
+            <a class="btn ghost" href="https://claude.ai/new" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">② Claude 열기</a>
+          </div>
+          <div class="status" id="aiStatus"></div>
+          <textarea id="aiPrompt" class="hidden" readonly style="min-height:120px;font:12.5px/1.5 var(--sans);margin-top:8px"></textarea>
+          <textarea id="aiPaste" placeholder="③ Claude의 답변을 여기에 붙여넣기" style="min-height:80px;font:14px/1.6 var(--sans);margin-top:12px"></textarea>
+          <button class="btn" id="aiSave">분석 저장</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const WD = ['일','월','화','수','목','금','토'];
+const pad = n => String(n).padStart(2,'0');
+const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseKey = k => { const [y,m,d]=k.split('-').map(Number); return new Date(y,m-1,d); };
+const todayKey = () => keyOf(new Date());
+const addDays = (k,n) => { const d=parseKey(k); d.setDate(d.getDate()+n); return keyOf(d); };
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const labelOf = k => { const d=parseKey(k); return `${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일`; };
+
+let entries = {}, loaded = false, lastAnalysis = null;
+let busy = false;
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+function showTab(t){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  ['today','log','insight'].forEach(x=>$('#tab-'+x).classList.toggle('hidden',x!==t));
+  if(t==='log') renderLog();
+  if(t==='insight') renderInsight();
+  window.scrollTo({top:0});
+}
+
+/* ---------- today ---------- */
+$('#date').value = todayKey();
+$('#date').max = todayKey();
+$('#date').onchange = ()=>renderToday();
+
+function renderToday(){
+  const k = $('#date').value || todayKey();
+  $('#dateLabel').textContent = (k===todayKey()?'오늘 · ':'') + labelOf(k);
+  const e = entries[k];
+  if(e && e.goal){
+    $('#goalShown').textContent = e.goal;
+    $('#goalView').classList.remove('hidden'); $('#goalEdit').classList.add('hidden');
+    $('#goal').value = e.goal;
+  } else {
+    $('#goalView').classList.add('hidden'); $('#goalEdit').classList.remove('hidden');
+    $('#goal').value = '';
+  }
+  $('#reflection').value = e && e.reflection ? e.reflection : '';
+  $('#eveningCard').style.opacity = e && e.goal ? 1 : .55;
+  $('#goalStatus').textContent=''; $('#eveStatus').textContent='';
+  // past reminders
+  const picks = [[7,'지난주 오늘'],[30,'한 달 전'],[90,'석 달 전'],[365,'1년 전']]
+    .map(([n,l])=>[addDays(k,-n),l]).filter(([d])=>entries[d]&&entries[d].goal);
+  if(picks.length){
+    $('#pastCard').classList.remove('hidden');
+    $('#pastList').innerHTML = picks.map(([d,l])=>`<div class="past" style="margin-bottom:10px"><div class="d">${l} · ${labelOf(d)}</div><div class="t">${esc(entries[d].goal)}</div></div>`).join('');
+  } else $('#pastCard').classList.add('hidden');
+}
+$('#editGoal').onclick = ()=>{ $('#goalView').classList.add('hidden'); $('#goalEdit').classList.remove('hidden'); $('#goal').focus(); };
+
+$('#saveGoal').onclick = async ()=>{
+  const k=$('#date').value||todayKey(), g=$('#goal').value.trim();
+  if(!g){ $('#goalStatus').textContent='목표를 한 줄이라도 적어 주세요.'; return; }
+  if(await writeEntry(k,{goal:g},$('#goalStatus'))){ const s=$('#goalStatus').textContent; renderToday(); $('#goalStatus').textContent=s; }
+};
+$('#saveEve').onclick = async ()=>{
+  const k=$('#date').value||todayKey();
+  if(!entries[k]||!entries[k].goal){ $('#eveStatus').textContent='먼저 이 날의 목표를 기록해 주세요.'; return; }
+  await writeEntry(k,{reflection:$('#reflection').value.trim()},$('#eveStatus'));
+};
+
+/* ---------- log ---------- */
+$('#q').oninput = ()=>renderLog();
+function renderLog(){
+  const q = $('#q').value.trim();
+  const keys = Object.keys(entries).filter(k=>entries[k].goal).sort().reverse()
+    .filter(k=>!q || (entries[k].goal+' '+(entries[k].reflection||'')).includes(q));
+  if(!loaded){ $('#logList').innerHTML='<div class="empty">불러오는 중…</div>'; return; }
+  if(!keys.length){ $('#logList').innerHTML = `<div class="empty">${q?'찾는 단어가 들어간 기록이 없어요.':'아직 기록이 없어요.<br>오늘 탭에서 첫 목표를 적어 보세요.'}</div>`; return; }
+  const hl = s => { const t=esc(s); return q ? t.split(esc(q)).join(`<mark>${esc(q)}</mark>`) : t; };
+  let html='', lastM='';
+  keys.forEach(k=>{
+    const e=entries[k], d=parseKey(k), m=`${d.getFullYear()}년 ${d.getMonth()+1}월`;
+    if(m!==lastM){ html+=`<div class="month">${m}</div>`; lastM=m; }
+    html+=`<div class="entry"><div class="top"><span>${d.getDate()}일 ${WD[d.getDay()]}요일</span><button class="edit" data-k="${k}">수정</button></div>
+      <div class="g">${hl(e.goal)}</div>${e.reflection?`<div class="r">🌙 ${hl(e.reflection)}</div>`:''}</div>`;
+  });
+  $('#logList').innerHTML = html;
+  $('#logList').querySelectorAll('.edit').forEach(b=>b.onclick=()=>{ $('#date').value=b.dataset.k; showTab('today'); renderToday(); });
+}
+
+/* ---------- analysis helpers ---------- */
+const THEMES = [
+  ['기쁨·감사',   ['기쁘','기쁜','기쁨','즐겁','즐기','감사','행복','웃','설레','신나']],
+  ['집중·본질',   ['집중','진짜','원하는','본질','중요','우선','몰입','한 가지']],
+  ['마음 다스림', ['실망','흔들','걱정','불안','조급','여유','차분','평온','내려놓','욕심','비교','휘둘']],
+  ['일·성과',     ['업무','보고','프로젝트','성과','완료','끝내','처리','마감','회의','계획']],
+  ['사람·관계',   ['사람','동료','가족','친구','대화','경청','배려','친절','칭찬','함께','팀']],
+  ['성장·배움',   ['배우','배움','공부','성장','책','읽','도전','새로','시도']],
+  ['몸·에너지',   ['운동','건강','잠','쉬','휴식','걷','에너지','체력','컨디션']],
+  ['하루의 리듬', ['시작','마무리','아침','저녁','하루를']],
+];
+const themeHits = t => THEMES.map(([,ws])=>ws.some(w=>t.includes(w)));
+const AVOID = /(말고|말자|않|안\s|없이|하지\s?말|실망|걱정|흔들리지|휘둘리지)/g;
+const APPROACH = /(하자|보자|해보자|만들자|만들어보자|겠다|할 것|해야지|하기)/g;
+const STOP = new Set(['하루','오늘','하자','보자','해보자','만들어보자','만들자','있는','하는','하기','것','수','더','좀','잘','그리고','나','내','내가','나의','위해','되는','되자','하게','하고','모든','오늘도','매일','그','이','저','등','및','때','만들어','하루가','하루를','하루로','하루의','하루도','말고','말자']);
+const PART = ['에서는','에게서','으로','에서','에게','처럼','까지','부터','보다','이랑','은','는','이','가','을','를','에','의','도','로','와','과','만'];
+const ENDS = ['해보자','만들어보자','하자','보자','말고','말자','하는','하기','하게','하고','하며','해서','하지','되자','자'];
+function tokens(text){
+  const out=[];
+  text.split(/[^가-힣a-zA-Z0-9]+/).forEach(w=>{
+    if(!w||STOP.has(w)) return;
+    for(const e of ENDS){ if(w.endsWith(e)&&w.length-e.length>=2){ w=w.slice(0,-e.length); break; } }
+    for(const p of PART){ if(w.endsWith(p)&&w.length-p.length>=2){ w=w.slice(0,-p.length); break; } }
+    if(w.length>=2 && !STOP.has(w)) out.push(w);
+  });
+  return out;
+}
+function countWords(keys){ const c={}; keys.forEach(k=>tokens(entries[k].goal).forEach(w=>c[w]=(c[w]||0)+1)); return c; }
+
+function streakOf(keys){
+  const set=new Set(keys); let k=todayKey(); if(!set.has(k)) k=addDays(k,-1);
+  let n=0; while(set.has(k)){ n++; k=addDays(k,-1); } return n;
+}
+
+function renderInsight(){
+  const keys = Object.keys(entries).filter(k=>entries[k].goal).sort();
+  if(!loaded || keys.length<3){
+    $('#insightEmpty').classList.remove('hidden'); $('#insightBody').classList.add('hidden');
+    $('#insightEmpty').innerHTML = !loaded ? '불러오는 중…' :
+      `기록이 ${keys.length}개 있어요.<br>3일 이상 쌓이면 패턴 분석이 열립니다.<br><span style="font-size:12px">한 달쯤 모이면 생각의 변화가 또렷하게 보이기 시작해요.</span>`;
+    return;
+  }
+  $('#insightEmpty').classList.add('hidden'); $('#insightBody').classList.remove('hidden');
+  const reflected = keys.filter(k=>entries[k].reflection).length;
+  const now=new Date(), mPrefix=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  const thisMonth = keys.filter(k=>k.startsWith(mPrefix)).length;
+  $('#stats').innerHTML = [
+    [keys.length,'기록한 날'],[streakOf(keys)+'일','연속 기록'],[reflected,'회고 남긴 날'],[`${thisMonth}/${now.getDate()}`,'이번 달']
+  ].map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+
+  // heatmap: 12 weeks, Monday-start
+  const t=new Date(); const dow=(t.getDay()+6)%7; const start=new Date(t); start.setDate(t.getDate()-dow-7*11);
+  let h='';
+  ['월','','수','','금','','일'].forEach((lab,r)=>{
+    h+=`<div style="display:flex;align-items:center">${lab}</div>`;
+    for(let c=0;c<12;c++){
+      const d=new Date(start); d.setDate(start.getDate()+c*7+r); const k=keyOf(d), e=entries[k];
+      const future = d>t;
+      let bg='var(--line)';
+      if(e&&e.goal){ bg = e.reflection ? 'var(--acc)' : 'var(--acc2)'; }
+      h+=`<div class="c${future?' f':''}" style="background:${bg}" title="${k}"></div>`;
+    }
+  });
+  $('#heat').innerHTML=h;
+
+  // themes
+  const cut = addDays(todayKey(),-30);
+  const recent = keys.filter(k=>k>cut), before = keys.filter(k=>k<=cut);
+  const share = arr => THEMES.map((_,i)=> arr.length ? arr.filter(k=>themeHits(entries[k].goal)[i]).length/arr.length : 0);
+  const all=share(keys), rs=share(recent), bs=share(before);
+  const order = THEMES.map((t,i)=>i).sort((a,b)=>all[b]-all[a]).filter(i=>all[i]>0);
+  $('#themes').innerHTML = order.length ? order.map(i=>{
+    let d=''; if(before.length>=5 && recent.length>=3){ const diff=Math.round((rs[i]-bs[i])*100); if(Math.abs(diff)>=10) d=`<span class="delta ${diff>0?'up':'down'}">${diff>0?'▲':'▼'}${Math.abs(diff)}</span>`; }
+    return `<div class="bar"><span>${THEMES[i][0]}</span><div class="track"><div class="fill" style="width:${Math.round(all[i]*100)}%"></div></div><span class="v">${Math.round(all[i]*100)}%${d}</span></div>`;
+  }).join('') : '<div class="empty">아직 분류할 주제가 없어요.</div>';
+
+  // framing by month
+  const months={};
+  keys.forEach(k=>{ const m=k.slice(0,7); const g=entries[k].goal; (months[m]=months[m]||{a:0,v:0});
+    months[m].a+=(g.match(APPROACH)||[]).length; months[m].v+=(g.match(AVOID)||[]).length; });
+  const ms=Object.keys(months).sort().slice(-6);
+  $('#framing').innerHTML = ms.map(m=>{ const {a,v}=months[m], s=a+v||1;
+    return `<div class="frame-row"><span>${+m.slice(5)}월</span><div class="split"><div class="a" style="width:${a/s*100}%"></div><div class="v" style="width:${v/s*100}%"></div></div></div>`; }).join('')
+    + `<div class="legend"><span><i style="background:var(--acc)"></i>향하는 말</span><span><i style="background:var(--sub);opacity:.55"></i>피하는 말</span></div>`;
+
+  // weekday
+  const wk=[1,2,3,4,5,6,0];
+  const vals = wk.map(w=>keys.filter(k=>parseKey(k).getDay()===w).length);
+  const mx = Math.max(...vals,1);
+  $('#weekday').innerHTML = wk.map((w,i)=>`<div class="col"><span class="val">${vals[i]||''}</span><div class="b" style="height:${vals[i]/mx*80}%;${vals[i]?'':'background:var(--line);height:2px'}"></div><span style="margin-top:4px">${WD[w]}</span></div>`).join('');
+
+  // words
+  const cAll=countWords(keys);
+  const top=Object.entries(cAll).filter(([,n])=>n>=2).sort((a,b)=>b[1]-a[1]).slice(0,18);
+  $('#words').innerHTML = top.length ? top.map(([w,n])=>`<span class="chip" style="font-size:${12+Math.min(n,8)}px">${esc(w)}<small>${n}</small></span>`).join('') : '<span class="hint">두 번 이상 쓴 단어가 아직 없어요.</span>';
+  let nw=[];
+  if(before.length>=5 && recent.length>=3){
+    const cR=countWords(recent), cB=countWords(before);
+    nw=Object.entries(cR).map(([w,n])=>[w, n/recent.length - (cB[w]||0)/before.length, n]).filter(([,d,n])=>n>=2&&d>0.1).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  }
+  $('#newWords').innerHTML = nw.length ? nw.map(([w,,n])=>`<span class="chip new">${esc(w)}<small>${n}</small></span>`).join('') : '<span class="hint" style="margin:0">기록이 한 달 넘게 쌓이면 보여요.</span>';
+
+  renderAI();
+}
+
+/* ---------- AI ---------- */
+function md(s){
+  const lines=esc(s).split('\n'); let h='', inList=false;
+  const inl=t=>t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  lines.forEach(l=>{
+    const t=l.trim();
+    if(/^[-*]\s+/.test(t)){ if(!inList){h+='<ul>';inList=true;} h+=`<li>${inl(t.replace(/^[-*]\s+/,''))}</li>`; return; }
+    if(inList){h+='</ul>';inList=false;}
+    if(/^#{1,4}\s/.test(t)) h+=`<h4>${inl(t.replace(/^#+\s/,''))}</h4>`;
+    else if(t) h+=`<p>${inl(t)}</p>`;
+  });
+  if(inList) h+='</ul>'; return h;
+}
+function renderAI(){
+  if(lastAnalysis){
+    $('#aiOut').innerHTML = md(lastAnalysis.text) + `<p class="hint" style="margin-top:10px">${new Date(lastAnalysis.at).toLocaleDateString('ko-KR')} 저장 · 기록 ${lastAnalysis.count}개 기준</p>`;
+  }
+}
+function buildPrompt(){
+  const keys = Object.keys(entries).filter(k=>entries[k].goal).sort().slice(-200);
+  const data = keys.map(k=>{ const e=entries[k]; return `${k} (${WD[parseKey(k).getDay()]}) | 목표: ${e.goal}${e.reflection?` | 회고: ${e.reflection}`:''}`; }).join('\n');
+  return {count:keys.length, text:`너는 따뜻하지만 솔직한 성찰 코치야. 아래는 내가 매일 아침 쓴 '하루 목표'와, 있으면 저녁에 남긴 한 줄 회고야.
+이 기록만 근거로 한국어로 분석해 줘. 주장마다 구체적인 날짜나 표현을 예로 들어. 과장된 칭찬이나 일반론은 빼고, 데이터가 부족한 부분은 부족하다고 말해.
+형식은 마크다운으로, 아래 제목을 그대로 쓰고 각 섹션은 2~4문장이나 짧은 불릿으로:
+## 자주 돌아오는 마음
+## 생각의 변화 (초반 → 최근)
+## 행동 패턴 (요일·회고)
+## 눈에 띄는 점
+## 이번 주에 스스로에게 던져볼 질문
+(마지막 섹션은 질문 딱 하나)
+
+기록:
+${data}`};
+}
+$('#aiBtn').onclick = async ()=>{
+  const {count,text} = buildPrompt();
+  if(!count){ $('#aiStatus').textContent='먼저 목표를 기록해 주세요.'; return; }
+  try{
+    await navigator.clipboard.writeText(text);
+    $('#aiPrompt').classList.add('hidden');
+    $('#aiStatus').textContent=`기록 ${count}개를 복사했어요. Claude를 열어 붙여넣기 하세요.`;
+  }catch(e){
+    $('#aiPrompt').value=text; $('#aiPrompt').classList.remove('hidden'); $('#aiPrompt').focus(); $('#aiPrompt').select();
+    $('#aiStatus').textContent='자동 복사가 안 돼요. 아래 글을 길게 눌러 전체 선택 후 복사해 주세요.';
+  }
+};
+$('#aiSave').onclick = ()=>{
+  const t=$('#aiPaste').value.trim();
+  if(!t){ $('#aiStatus').textContent='붙여넣은 답변이 없어요.'; return; }
+  lastAnalysis={text:t, at:Date.now(), count:Object.keys(entries).filter(k=>entries[k].goal).length};
+  store.set(ANALYSIS_KEY,lastAnalysis); $('#aiPaste').value=''; $('#aiPrompt').classList.add('hidden');
+  $('#aiStatus').textContent='분석을 저장했어요 ✓'; renderAI();
+};
+
+/* ---------- storage (this device only) ---------- */
+const ENTRIES_KEY='dailyGoals.entries.v1', ANALYSIS_KEY='dailyGoals.analysis.v1';
+const store = {
+  get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } }
+};
+async function writeEntry(k, patch, statusEl){
+  const prev = entries[k] || {};
+  const body = { date:k, goal:prev.goal||'', reflection:prev.reflection||'',
+                 createdAt:prev.createdAt||Date.now(), ...patch, updatedAt:Date.now() };
+  const next = {...entries, [k]:body};
+  if(store.set(ENTRIES_KEY,next)){ entries=next; statusEl.textContent='저장했어요 ✓'; return true; }
+  statusEl.textContent='저장하지 못했어요. 브라우저 저장 공간이나 시크릿 모드를 확인해 주세요.'; return false;
+}
+
+/* ---------- file helpers ---------- */
+async function shareOrSave(name, content, type, statusEl, shareTitle){
+  const file = new File([content], name, {type});
+  if(shareTitle && navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:shareTitle}); statusEl.textContent='공유했어요 ✓'; return; }
+    catch(e){ if(e && e.name==='AbortError'){ statusEl.textContent='공유를 취소했어요.'; return; } }
+  }
+  const url=URL.createObjectURL(file), a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  statusEl.textContent='파일을 저장했어요 ✓';
+}
+
+/* ---------- backup ---------- */
+$('#bkOut').onclick = ()=>{
+  const n=Object.keys(entries).length;
+  if(!n){ $('#bkStatus').textContent='아직 백업할 기록이 없어요.'; return; }
+  shareOrSave(`하루목표_백업_${todayKey()}.json`, JSON.stringify({app:'daily-goals',version:1,exportedAt:new Date().toISOString(),entries,analysis:lastAnalysis},null,1), 'application/json', $('#bkStatus'), null);
+};
+$('#bkIn').onchange = async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const data=JSON.parse(await f.text());
+    if(!data || data.app!=='daily-goals' || typeof data.entries!=='object') throw 0;
+    const next={...entries}; let added=0, updated=0;
+    Object.entries(data.entries).forEach(([k,v])=>{
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(k) || !v || typeof v.goal!=='string') return;
+      const clean={date:k, goal:v.goal, reflection:typeof v.reflection==='string'?v.reflection:'', createdAt:+v.createdAt||Date.now(), updatedAt:+v.updatedAt||Date.now()};
+      if(!next[k]){ next[k]=clean; added++; } else if(clean.updatedAt>(next[k].updatedAt||0)){ next[k]=clean; updated++; }
+    });
+    if(!store.set(ENTRIES_KEY,next)) throw 1;
+    entries=next;
+    if(data.analysis && typeof data.analysis.text==='string' && (!lastAnalysis || data.analysis.at>lastAnalysis.at)){ lastAnalysis=data.analysis; store.set(ANALYSIS_KEY,lastAnalysis); }
+    $('#bkStatus').textContent=`불러왔어요 ✓ 새 기록 ${added}개, 갱신 ${updated}개`;
+    renderAll(); renderLog();
+  }catch(err){ $('#bkStatus').textContent='이 앱의 백업 파일이 아니거나 읽을 수 없어요.'; }
+};
+
+/* ---------- export ---------- */
+async function exportReport(){
+  const keys = Object.keys(entries).filter(k=>entries[k].goal).sort();
+  if(!keys.length){ $('#exportStatus').textContent='아직 내보낼 기록이 없어요.'; return; }
+  renderInsight();
+  let analysis = '';
+  if(!$('#insightBody').classList.contains('hidden')){
+    const ins = $('#insightBody').cloneNode(true);
+    ins.querySelectorAll('.aiTools').forEach(n=>n.remove());
+    const ai = ins.querySelector('#aiCard');
+    if(ai){ if(lastAnalysis){ const h=ai.querySelector('.hint'); if(h) h.remove(); ai.querySelector('h2').textContent='✨ 생각의 변화 읽기 (Claude 분석)'; } else ai.remove(); }
+    ins.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
+    analysis = ins.innerHTML;
+  } else {
+    analysis = `<div class="card empty">기록이 3일 이상 쌓이면 분석이 함께 담겨요.</div>`;
+  }
+  let list='', lastM='';
+  [...keys].reverse().forEach(k=>{
+    const e=entries[k], d=parseKey(k), m=`${d.getFullYear()}년 ${d.getMonth()+1}월`;
+    if(m!==lastM){ list+=`<div class="month">${m}</div>`; lastM=m; }
+    list+=`<div class="entry"><div class="top"><span>${d.getDate()}일 ${WD[d.getDay()]}요일</span></div>
+      <div class="g">${esc(e.goal)}</div>${e.reflection?`<div class="r">🌙 ${esc(e.reflection)}</div>`:''}</div>`;
+  });
+  const range = `${labelOf(keys[0])} ~ ${labelOf(keys[keys.length-1])}`;
+  const made = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const html = `<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하루 목표 기록 리포트 · ${todayKey()}</title>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>${document.querySelector('style').textContent}
+.sec{font-family:var(--serif);font-size:18px;margin:28px 4px 12px}
+footer{color:var(--sub);font-size:12px;text-align:center;margin-top:28px}</style></head>
+<body><div class="wrap">
+<header><h1>하루 목표 기록 리포트</h1><p>${range} · 기록 ${keys.length}일 · ${made} 작성</p></header>
+<h2 class="sec">패턴 분석</h2>${analysis}
+<h2 class="sec">전체 기록</h2>${list}
+<footer>하루 목표 기록장에서 내보낸 리포트</footer>
+</div></body></html>`;
+  $('#exportBtn').disabled = true;
+  try{ await shareOrSave(`하루목표_리포트_${todayKey()}.html`, html, 'text/html', $('#exportStatus'), '하루 목표 기록 리포트'); }
+  catch(e){ $('#exportStatus').textContent='파일을 만들지 못했어요.'; }
+  finally{ $('#exportBtn').disabled = false; }
+}
+$('#exportBtn').onclick = exportReport;
+
+/* ---------- install ---------- */
+let installEvt=null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installEvt=e; $('#installBtn').classList.remove('hidden'); });
+$('#installBtn').onclick = async ()=>{ if(!installEvt) return; installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt=null; $('#installBtn').classList.add('hidden'); };
+window.addEventListener('appinstalled', ()=>$('#installBtn').classList.add('hidden'));
+
+/* ---------- boot ---------- */
+function renderAll(){ renderToday(); if(!$('#tab-log').classList.contains('hidden')) renderLog(); if(!$('#tab-insight').classList.contains('hidden')) renderInsight(); }
+entries = store.get(ENTRIES_KEY) || {};
+lastAnalysis = store.get(ANALYSIS_KEY);
+loaded = true;
+renderAll(); renderAI();
+try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); }catch(e){ $('#note').textContent='이 브라우저에서는 기록을 저장할 수 없어요 (시크릿 모드인지 확인해 주세요).'; }
+if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+if('serviceWorker' in navigator) window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
