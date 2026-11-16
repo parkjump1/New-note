@@ -58,6 +58,17 @@ textarea:focus,input:focus{outline:2px solid var(--acc2);outline-offset:0;border
 .days button{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--sub);border-radius:8px;padding:7px 0;font:500 13px var(--sans);cursor:pointer}
 .days button.on{background:var(--ink);border-color:var(--ink);color:var(--card)}
 .btn.small{padding:9px 12px;font-size:13px}
+.hist{border:1px solid var(--line);border-radius:12px;margin-top:10px;background:var(--bg)}
+.hist summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+.hist summary::-webkit-details-marker{display:none}
+.hist summary b{font-weight:700}
+.hist summary small{color:var(--sub);font-size:12px}
+.hist[open] summary{border-bottom:1px dashed var(--line)}
+.hist .body{padding:12px 14px}
+.tag{font-size:11px;border-radius:999px;padding:2px 8px;background:var(--acc3);color:var(--acc);white-space:nowrap}
+.snap{font-size:13px;line-height:1.8}
+.snap .k{color:var(--sub);display:inline-block;min-width:74px}
+.del{border:0;background:none;color:var(--warn);font:500 12.5px var(--sans);cursor:pointer;padding:0;margin-top:10px}
 .status{font-size:12.5px;color:var(--sub);min-height:18px;margin-top:6px}
 .past{border-left:3px solid var(--acc2);padding:2px 0 2px 12px;margin-top:4px}
 .past .d{font-size:12px;color:var(--sub)}
@@ -254,6 +265,14 @@ mark{background:var(--acc3);color:inherit;border-radius:3px}
           <textarea id="aiPaste" placeholder="③ Claude의 답변을 여기에 붙여넣기" style="min-height:80px;font:14px/1.6 var(--sans);margin-top:12px"></textarea>
           <button class="btn" id="aiSave">분석 저장</button>
         </div>
+      </div>
+
+      <div class="card" id="histCard">
+        <h2>🗂 분석 히스토리</h2>
+        <p class="hint">저장할 때마다 그 시점의 주요 마음·자주 쓴 말·달성도가 함께 남아요. 시간이 지나며 무엇이 달라졌는지 비교해 보세요.</p>
+        <button class="btn ghost small" id="snapBtn" style="margin-top:0">📌 지금 분석 저장하기</button>
+        <span class="status" id="snapStatus" style="margin-left:6px"></span>
+        <div id="histList"></div>
       </div>
     </div>
   </section>
@@ -482,6 +501,8 @@ function md(s){
   if(inList) h+='</ul>'; return h;
 }
 function renderAI(){
+  renderHistory();
+  if(!lastAnalysis) $('#aiOut').innerHTML='';
   if(lastAnalysis){
     $('#aiOut').innerHTML = md(lastAnalysis.text) + `<p class="hint" style="margin-top:10px">${new Date(lastAnalysis.at).toLocaleDateString('ko-KR')} 저장 · 기록 ${lastAnalysis.count}개 기준</p>`;
   }
@@ -517,9 +538,67 @@ $('#aiBtn').onclick = async ()=>{
 $('#aiSave').onclick = ()=>{
   const t=$('#aiPaste').value.trim();
   if(!t){ $('#aiStatus').textContent='붙여넣은 답변이 없어요.'; return; }
-  lastAnalysis={text:t, at:Date.now(), count:Object.keys(entries).filter(k=>entries[k].goal).length};
-  store.set(ANALYSIS_KEY,lastAnalysis); $('#aiPaste').value=''; $('#aiPrompt').classList.add('hidden');
-  $('#aiStatus').textContent='분석을 저장했어요 ✓'; renderAI();
+  const item = addHistory(t);
+  if(!item){ $('#aiStatus').textContent='저장하지 못했어요. 저장 공간을 확인해 주세요.'; return; }
+  $('#aiPaste').value=''; $('#aiPrompt').classList.add('hidden');
+  $('#aiStatus').textContent='분석을 저장했어요 ✓ 아래 히스토리에서 다시 볼 수 있어요.'; renderAI();
+};
+
+/* ---------- analysis history ---------- */
+const HIST_KEY='dailyGoals.history.v1';
+let hist = [];
+function snapshot(){
+  const keys = Object.keys(entries).filter(k=>entries[k].goal).sort();
+  const share = THEMES.map((_,i)=> keys.length ? keys.filter(k=>themeHits(entries[k].goal)[i]).length/keys.length : 0);
+  const themes = THEMES.map((t,i)=>[t[0],Math.round(share[i]*100)]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const words = Object.entries(countWords(keys)).filter(([,n])=>n>=2).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([w])=>w);
+  let a=0,v=0; keys.forEach(k=>{ const g=entries[k].goal; a+=(g.match(APPROACH)||[]).length; v+=(g.match(AVOID)||[]).length; });
+  const scored = keys.filter(k=>entries[k].score);
+  return { count:keys.length, from:keys[0]||'', to:keys[keys.length-1]||'',
+    themes, words, approach: a+v ? Math.round(a/(a+v)*100) : null,
+    avg: scored.length ? +(scored.reduce((s,k)=>s+entries[k].score,0)/scored.length).toFixed(1) : null,
+    reflected: keys.filter(k=>entries[k].reflection).length };
+}
+function saveHistory(){ return store.set(HIST_KEY,hist); }
+function addHistory(aiText){
+  const snap=snapshot(); if(!snap.count) return null;
+  const item={id:'h'+Date.now(), at:Date.now(), ai:aiText||null, snap};
+  hist=[item,...hist];
+  if(!saveHistory()){ hist=hist.slice(1); return null; }
+  if(aiText) lastAnalysis={text:aiText, at:item.at, count:snap.count};
+  return item;
+}
+function latestAI(){ const h=hist.find(x=>x.ai); return h ? {text:h.ai, at:h.at, count:h.snap.count} : null; }
+const shortDate = k => k ? `${+k.slice(5,7)}/${+k.slice(8)}` : '';
+function renderHistory(){
+  if(!hist.length){ $('#histList').innerHTML='<div class="hint" style="margin-top:12px">아직 저장된 분석이 없어요.</div>'; return; }
+  $('#histList').innerHTML = hist.map((h,i)=>{
+    const s=h.snap, d=new Date(h.at);
+    const prev = hist[i+1] && hist[i+1].snap;
+    const diff = (cur,old,unit='') => (cur!=null && old!=null && cur!==old) ? ` <span class="${cur>old?'up':'down'}" style="font-size:11.5px">${cur>old?'▲':'▼'}${Math.abs(+(cur-old).toFixed(1))}${unit}</span>` : '';
+    return `<details class="hist"${i===0?' open':''}>
+      <summary><span><b>${d.getMonth()+1}월 ${d.getDate()}일</b> <small>${pad(d.getHours())}:${pad(d.getMinutes())} · 기록 ${s.count}개</small></span>${h.ai?'<span class="tag">✨ Claude 분석</span>':''}</summary>
+      <div class="body">
+        <div class="snap">
+          <div><span class="k">기간</span>${shortDate(s.from)} ~ ${shortDate(s.to)}</div>
+          <div><span class="k">주요 마음</span>${s.themes.length? s.themes.map(([t,p])=>`${esc(t)} ${p}%`).join(' · ') : '–'}</div>
+          <div><span class="k">자주 쓴 말</span>${s.words.length? s.words.map(esc).join(', ') : '–'}</div>
+          <div><span class="k">향하는 말</span>${s.approach!=null? s.approach+'%' : '–'}${diff(s.approach, prev&&prev.approach,'%p')}</div>
+          <div><span class="k">평균 달성도</span>${s.avg!=null? s.avg : '–'}${diff(s.avg, prev&&prev.avg)}</div>
+        </div>
+        ${h.ai?`<div class="ai" style="margin-top:12px;border-top:1px dashed var(--line);padding-top:10px">${md(h.ai)}</div>`:''}
+        <button class="del" data-id="${h.id}">삭제</button>
+      </div></details>`;
+  }).join('');
+  $('#histList').querySelectorAll('.del').forEach(b=>b.onclick=()=>{
+    if(b.dataset.armed!=='1'){ b.dataset.armed='1'; b.textContent='한 번 더 누르면 삭제돼요'; setTimeout(()=>{ b.dataset.armed=''; b.textContent='삭제'; },4000); return; }
+    hist=hist.filter(x=>x.id!==b.dataset.id); saveHistory(); lastAnalysis=latestAI(); renderAI();
+  });
+}
+$('#snapBtn').onclick = ()=>{
+  const item=addHistory(null);
+  $('#snapStatus').textContent = item ? '저장했어요 ✓' : '저장할 기록이 없어요.';
+  renderHistory();
 };
 
 /* ---------- storage (this device only) ---------- */
@@ -554,7 +633,7 @@ async function shareOrSave(name, content, type, statusEl, shareTitle){
 $('#bkOut').onclick = ()=>{
   const n=Object.keys(entries).length;
   if(!n){ $('#bkStatus').textContent='아직 백업할 기록이 없어요.'; return; }
-  shareOrSave(`하루목표_백업_${todayKey()}.json`, JSON.stringify({app:'daily-goals',version:1,exportedAt:new Date().toISOString(),entries,analysis:lastAnalysis},null,1), 'application/json', $('#bkStatus'), null);
+  shareOrSave(`하루목표_백업_${todayKey()}.json`, JSON.stringify({app:'daily-goals',version:1,exportedAt:new Date().toISOString(),entries,history:hist},null,1), 'application/json', $('#bkStatus'), null);
 };
 $('#bkIn').onchange = async e=>{
   const f=e.target.files[0]; e.target.value=''; if(!f) return;
@@ -571,7 +650,14 @@ $('#bkIn').onchange = async e=>{
     });
     if(!store.set(ENTRIES_KEY,next)) throw 1;
     entries=next;
-    if(data.analysis && typeof data.analysis.text==='string' && (!lastAnalysis || data.analysis.at>lastAnalysis.at)){ lastAnalysis=data.analysis; store.set(ANALYSIS_KEY,lastAnalysis); }
+    const incoming = Array.isArray(data.history) ? data.history : [];
+    if(data.analysis && typeof data.analysis.text==='string') incoming.push({id:'h'+(+data.analysis.at||Date.now()), at:+data.analysis.at||Date.now(), ai:data.analysis.text, snap:{count:+data.analysis.count||0,from:'',to:'',themes:[],words:[],approach:null,avg:null,reflected:0}});
+    const ids=new Set(hist.map(h=>h.id));
+    incoming.forEach(h=>{ if(h && typeof h.id==='string' && !ids.has(h.id) && h.snap && typeof h.snap==='object'){
+      hist.push({id:h.id, at:+h.at||Date.now(), ai:typeof h.ai==='string'?h.ai:null, snap:{count:+h.snap.count||0, from:String(h.snap.from||''), to:String(h.snap.to||''),
+        themes:Array.isArray(h.snap.themes)?h.snap.themes.slice(0,5).map(x=>[String(x[0]),+x[1]||0]):[], words:Array.isArray(h.snap.words)?h.snap.words.slice(0,10).map(String):[],
+        approach:h.snap.approach==null?null:+h.snap.approach, avg:h.snap.avg==null?null:+h.snap.avg, reflected:+h.snap.reflected||0}}); ids.add(h.id); } });
+    hist.sort((a,b)=>b.at-a.at); saveHistory(); lastAnalysis=latestAI();
     $('#bkStatus').textContent=`불러왔어요 ✓ 새 기록 ${added}개, 갱신 ${updated}개`;
     renderAll(); renderLog();
   }catch(err){ $('#bkStatus').textContent='이 앱의 백업 파일이 아니거나 읽을 수 없어요.'; }
@@ -585,7 +671,7 @@ async function exportReport(){
   let analysis = '';
   if(!$('#insightBody').classList.contains('hidden')){
     const ins = $('#insightBody').cloneNode(true);
-    ins.querySelectorAll('.aiTools').forEach(n=>n.remove());
+    ins.querySelectorAll('.aiTools, #histCard').forEach(n=>n.remove());
     const ai = ins.querySelector('#aiCard');
     if(ai){ if(lastAnalysis){ const h=ai.querySelector('.hint'); if(h) h.remove(); ai.querySelector('h2').textContent='✨ 생각의 변화 읽기 (Claude 분석)'; } else ai.remove(); }
     ins.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
@@ -701,7 +787,13 @@ window.addEventListener('appinstalled', ()=>$('#installBtn').classList.add('hidd
 /* ---------- boot ---------- */
 function renderAll(){ renderToday(); if(!$('#tab-log').classList.contains('hidden')) renderLog(); if(!$('#tab-insight').classList.contains('hidden')) renderInsight(); }
 entries = store.get(ENTRIES_KEY) || {};
-lastAnalysis = store.get(ANALYSIS_KEY);
+hist = store.get(HIST_KEY) || [];
+const legacy = store.get(ANALYSIS_KEY);
+if(legacy && typeof legacy.text==='string' && !hist.some(h=>h.ai===legacy.text)){
+  hist.push({id:'h'+(legacy.at||Date.now()), at:legacy.at||Date.now(), ai:legacy.text, snap:{count:legacy.count||0,from:'',to:'',themes:[],words:[],approach:null,avg:null,reflected:0}});
+  hist.sort((a,b)=>b.at-a.at); saveHistory();
+}
+lastAnalysis = latestAI();
 loaded = true;
 renderAll(); renderAI();
 try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); }catch(e){ $('#note').textContent='이 브라우저에서는 기록을 저장할 수 없어요 (시크릿 모드인지 확인해 주세요).'; }
