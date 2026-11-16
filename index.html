@@ -47,6 +47,9 @@ textarea:focus,input:focus{outline:2px solid var(--acc2);outline-offset:0;border
 .scores button{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 0 6px;cursor:pointer;color:var(--ink);font:500 12px var(--sans)}
 .scores button b{display:block;font-size:17px;margin-bottom:2px}
 .scores button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.rq{font-size:13px;font-weight:700;margin:12px 0 6px;color:var(--ink)}
+.rq span{color:var(--sub);font-weight:400;font-size:12px}
+.rbox{min-height:54px!important;font-size:15px!important;padding:9px 12px!important}
 .status{font-size:12.5px;color:var(--sub);min-height:18px;margin-top:6px}
 .past{border-left:3px solid var(--acc2);padding:2px 0 2px 12px;margin-top:4px}
 .past .d{font-size:12px;color:var(--sub)}
@@ -56,7 +59,7 @@ textarea:focus,input:focus{outline:2px solid var(--acc2);outline-offset:0;border
 .entry{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
 .entry .top{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--sub)}
 .entry .g{font-family:var(--serif);font-size:16px;line-height:1.7;margin:6px 0 0;white-space:pre-wrap}
-.entry .r{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.6;border-top:1px dashed var(--line);padding-top:8px}
+.entry .r{white-space:pre-wrap;font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.6;border-top:1px dashed var(--line);padding-top:8px}
 .entry .edit{border:0;background:none;color:var(--acc);font:500 12.5px var(--sans);cursor:pointer;padding:0}
 .dots{letter-spacing:2px;color:var(--acc)}
 mark{background:var(--acc3);color:inherit;border-radius:3px}
@@ -133,8 +136,15 @@ mark{background:var(--acc3);color:inherit;border-radius:3px}
 
     <div class="card" id="eveningCard">
       <h2>🌙 하루 마무리 <span style="font-weight:400;color:var(--sub);font-size:12.5px">(선택)</span></h2>
-      <p class="hint">퇴근 전에 한 줄 남겨두면, 다짐과 실제 하루를 함께 볼 수 있어요.</p>
-      <textarea id="reflection" placeholder="한 줄 회고 — 오늘 잘 된 것, 흔들렸던 순간, 내일 가져갈 것" style="min-height:70px;font-size:15px"></textarea>
+      <p class="hint">퇴근 전에 아침의 다짐을 떠올리며 돌아봐요. 쓰고 싶은 칸만 채워도 돼요.</p>
+      <div class="rq">오늘의 목표를 얼마나 살았나요?</div>
+      <div class="scores" id="scores"></div>
+      <div class="rq">✓ 오늘 잘 된 것 <span>작은 것이라도</span></div>
+      <textarea id="rGood" class="rbox" placeholder="예) 보고서 초안을 미루지 않고 끝냈다"></textarea>
+      <div class="rq">△ 흔들린 순간 <span>언제, 무엇 때문에</span></div>
+      <textarea id="rShaky" class="rbox" placeholder="예) 오후 회의 후 괜히 기운이 빠졌다"></textarea>
+      <div class="rq">→ 내일 가져갈 것 <span>한 가지만</span></div>
+      <textarea id="rNext" class="rbox" placeholder="예) 아침 첫 30분은 가장 중요한 일부터"></textarea>
       <button class="btn" id="saveEve">마무리 저장</button>
       <div class="status" id="eveStatus"></div>
     </div>
@@ -172,12 +182,12 @@ mark{background:var(--acc3);color:inherit;border-radius:3px}
 
       <div class="card">
         <h2>최근 12주 기록</h2>
-        <p class="hint">진한 칸은 회고까지 남긴 날이에요.</p>
+        <p class="hint">달성도를 남긴 날은 점수가 높을수록 진하게 보여요.</p>
         <div class="heat" id="heat"></div>
         <div class="legend">
           <span><i style="background:var(--line)"></i>기록 없음</span>
           <span><i style="background:var(--acc2)"></i>목표만</span>
-          <span><i style="background:var(--acc)"></i>목표 + 회고</span>
+          <span><i style="background:var(--acc)"></i>달성도 높음</span>
         </div>
       </div>
 
@@ -195,7 +205,7 @@ mark{background:var(--acc3);color:inherit;border-radius:3px}
 
       <div class="card">
         <h2>요일별 패턴</h2>
-        <p class="hint">요일마다 목표를 기록한 횟수</p>
+        <p class="hint" id="weekHint">요일마다 목표를 기록한 횟수</p>
         <div class="cols" id="weekday"></div>
       </div>
 
@@ -238,7 +248,14 @@ const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 const labelOf = k => { const d=parseKey(k); return `${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일`; };
 
 let entries = {}, loaded = false, lastAnalysis = null;
-let busy = false;
+let busy = false, curScore = null;
+const RQ = [['good','✓ 잘 된 것','rGood'],['shaky','△ 흔들린 순간','rShaky'],['next','→ 내일 가져갈 것','rNext']];
+function joinReflection(rp){ return RQ.filter(([k])=>rp[k]).map(([k,l])=>`${l}: ${rp[k]}`).join('\n'); }
+function partsOf(e){
+  if(!e) return {good:'',shaky:'',next:''};
+  if(e.rp && typeof e.rp==='object') return {good:e.rp.good||'',shaky:e.rp.shaky||'',next:e.rp.next||''};
+  return {good:e.reflection||'',shaky:'',next:''};   // 예전 한 줄 회고는 첫 칸으로
+}
 
 /* ---------- tabs ---------- */
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
@@ -267,7 +284,8 @@ function renderToday(){
     $('#goalView').classList.add('hidden'); $('#goalEdit').classList.remove('hidden');
     $('#goal').value = '';
   }
-  $('#reflection').value = e && e.reflection ? e.reflection : '';
+  const rp = partsOf(e); RQ.forEach(([k,,id])=>{ $('#'+id).value = rp[k]; });
+  curScore = e && e.score ? e.score : null; paintScores();
   $('#eveningCard').style.opacity = e && e.goal ? 1 : .55;
   $('#goalStatus').textContent=''; $('#eveStatus').textContent='';
   // past reminders
@@ -278,6 +296,11 @@ function renderToday(){
     $('#pastList').innerHTML = picks.map(([d,l])=>`<div class="past" style="margin-bottom:10px"><div class="d">${l} · ${labelOf(d)}</div><div class="t">${esc(entries[d].goal)}</div></div>`).join('');
   } else $('#pastCard').classList.add('hidden');
 }
+const scoreLabels = ['거의 못함','조금','절반','대부분','온전히'];
+$('#scores').innerHTML = scoreLabels.map((l,i)=>`<button data-s="${i+1}"><b>${i+1}</b>${l}</button>`).join('');
+$('#scores').onclick = e => { const b=e.target.closest('button'); if(!b) return; curScore = curScore===+b.dataset.s ? null : +b.dataset.s; paintScores(); };
+function paintScores(){ document.querySelectorAll('#scores button').forEach(b=>b.classList.toggle('on',+b.dataset.s===curScore)); }
+const dotsOf = sc => sc ? ` <span class="dots">${'●'.repeat(sc)}${'○'.repeat(5-sc)}</span>` : '';
 $('#editGoal').onclick = ()=>{ $('#goalView').classList.add('hidden'); $('#goalEdit').classList.remove('hidden'); $('#goal').focus(); };
 
 $('#saveGoal').onclick = async ()=>{
@@ -288,7 +311,8 @@ $('#saveGoal').onclick = async ()=>{
 $('#saveEve').onclick = async ()=>{
   const k=$('#date').value||todayKey();
   if(!entries[k]||!entries[k].goal){ $('#eveStatus').textContent='먼저 이 날의 목표를 기록해 주세요.'; return; }
-  await writeEntry(k,{reflection:$('#reflection').value.trim()},$('#eveStatus'));
+  const rp={}; RQ.forEach(([k,,id])=>{ rp[k]=$('#'+id).value.trim(); });
+  await writeEntry(k,{score:curScore, rp, reflection:joinReflection(rp)},$('#eveStatus'));
 };
 
 /* ---------- log ---------- */
@@ -304,7 +328,7 @@ function renderLog(){
   keys.forEach(k=>{
     const e=entries[k], d=parseKey(k), m=`${d.getFullYear()}년 ${d.getMonth()+1}월`;
     if(m!==lastM){ html+=`<div class="month">${m}</div>`; lastM=m; }
-    html+=`<div class="entry"><div class="top"><span>${d.getDate()}일 ${WD[d.getDay()]}요일</span><button class="edit" data-k="${k}">수정</button></div>
+    html+=`<div class="entry"><div class="top"><span>${d.getDate()}일 ${WD[d.getDay()]}요일${dotsOf(e.score)}</span><button class="edit" data-k="${k}">수정</button></div>
       <div class="g">${hl(e.goal)}</div>${e.reflection?`<div class="r">🌙 ${hl(e.reflection)}</div>`:''}</div>`;
   });
   $('#logList').innerHTML = html;
@@ -355,10 +379,12 @@ function renderInsight(){
   }
   $('#insightEmpty').classList.add('hidden'); $('#insightBody').classList.remove('hidden');
   const reflected = keys.filter(k=>entries[k].reflection).length;
+  const scored = keys.filter(k=>entries[k].score);
+  const avg = scored.length ? (scored.reduce((a,k)=>a+entries[k].score,0)/scored.length).toFixed(1) : '–';
   const now=new Date(), mPrefix=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
   const thisMonth = keys.filter(k=>k.startsWith(mPrefix)).length;
   $('#stats').innerHTML = [
-    [keys.length,'기록한 날'],[streakOf(keys)+'일','연속 기록'],[reflected,'회고 남긴 날'],[`${thisMonth}/${now.getDate()}`,'이번 달']
+    [keys.length,'기록한 날'],[streakOf(keys)+'일','연속 기록'],[avg,'평균 달성도'],[reflected,'회고 남긴 날']
   ].map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
 
   // heatmap: 12 weeks, Monday-start
@@ -370,7 +396,7 @@ function renderInsight(){
       const d=new Date(start); d.setDate(start.getDate()+c*7+r); const k=keyOf(d), e=entries[k];
       const future = d>t;
       let bg='var(--line)';
-      if(e&&e.goal){ bg = e.reflection ? 'var(--acc)' : 'var(--acc2)'; }
+      if(e&&e.goal){ bg = e.score ? `color-mix(in srgb, var(--acc) ${30+e.score*14}%, var(--acc3))` : 'var(--acc2)'; }
       h+=`<div class="c${future?' f':''}" style="background:${bg}" title="${k}"></div>`;
     }
   });
@@ -398,9 +424,12 @@ function renderInsight(){
 
   // weekday
   const wk=[1,2,3,4,5,6,0];
-  const vals = wk.map(w=>keys.filter(k=>parseKey(k).getDay()===w).length);
-  const mx = Math.max(...vals,1);
-  $('#weekday').innerHTML = wk.map((w,i)=>`<div class="col"><span class="val">${vals[i]||''}</span><div class="b" style="height:${vals[i]/mx*80}%;${vals[i]?'':'background:var(--line);height:2px'}"></div><span style="margin-top:4px">${WD[w]}</span></div>`).join('');
+  const useScore = scored.length>=5;
+  $('#weekHint').textContent = useScore ? '요일마다 평균 달성도' : '요일마다 목표를 기록한 횟수 (달성도가 5일 이상 쌓이면 요일별 평균 달성도로 바뀌어요)';
+  const vals = wk.map(w=>{ const ks=(useScore?scored:keys).filter(k=>parseKey(k).getDay()===w);
+    return useScore ? (ks.length ? ks.reduce((a,k)=>a+entries[k].score,0)/ks.length : 0) : ks.length; });
+  const mx = useScore ? 5 : Math.max(...vals,1);
+  $('#weekday').innerHTML = wk.map((w,i)=>`<div class="col"><span class="val">${vals[i]?(useScore?vals[i].toFixed(1):vals[i]):''}</span><div class="b" style="height:${vals[i]/mx*80}%;${vals[i]?'':'background:var(--line);height:2px'}"></div><span style="margin-top:4px">${WD[w]}</span></div>`).join('');
 
   // words
   const cAll=countWords(keys);
@@ -436,13 +465,13 @@ function renderAI(){
 }
 function buildPrompt(){
   const keys = Object.keys(entries).filter(k=>entries[k].goal).sort().slice(-200);
-  const data = keys.map(k=>{ const e=entries[k]; return `${k} (${WD[parseKey(k).getDay()]}) | 목표: ${e.goal}${e.reflection?` | 회고: ${e.reflection}`:''}`; }).join('\n');
-  return {count:keys.length, text:`너는 따뜻하지만 솔직한 성찰 코치야. 아래는 내가 매일 아침 쓴 '하루 목표'와, 있으면 저녁에 남긴 한 줄 회고야.
+  const data = keys.map(k=>{ const e=entries[k]; return `${k} (${WD[parseKey(k).getDay()]}) | 목표: ${e.goal}${e.score?` | 달성도: ${e.score}/5`:''}${e.reflection?` | 회고: ${e.reflection.replace(/\n/g,' / ')}`:''}`; }).join('\n');
+  return {count:keys.length, text:`너는 따뜻하지만 솔직한 성찰 코치야. 아래는 내가 매일 아침 쓴 '하루 목표'와, 있으면 저녁에 남긴 달성도(1~5)와 회고(잘 된 것 / 흔들린 순간 / 내일 가져갈 것)야.
 이 기록만 근거로 한국어로 분석해 줘. 주장마다 구체적인 날짜나 표현을 예로 들어. 과장된 칭찬이나 일반론은 빼고, 데이터가 부족한 부분은 부족하다고 말해.
 형식은 마크다운으로, 아래 제목을 그대로 쓰고 각 섹션은 2~4문장이나 짧은 불릿으로:
 ## 자주 돌아오는 마음
 ## 생각의 변화 (초반 → 최근)
-## 행동 패턴 (요일·회고)
+## 행동 패턴 (요일·달성도·회고)
 ## 눈에 띄는 점
 ## 이번 주에 스스로에게 던져볼 질문
 (마지막 섹션은 질문 딱 하나)
@@ -478,7 +507,7 @@ const store = {
 };
 async function writeEntry(k, patch, statusEl){
   const prev = entries[k] || {};
-  const body = { date:k, goal:prev.goal||'', reflection:prev.reflection||'',
+  const body = { date:k, goal:prev.goal||'', score:prev.score??null, rp:prev.rp||null, reflection:prev.reflection||'',
                  createdAt:prev.createdAt||Date.now(), ...patch, updatedAt:Date.now() };
   const next = {...entries, [k]:body};
   if(store.set(ENTRIES_KEY,next)){ entries=next; statusEl.textContent='저장했어요 ✓'; return true; }
@@ -512,7 +541,9 @@ $('#bkIn').onchange = async e=>{
     const next={...entries}; let added=0, updated=0;
     Object.entries(data.entries).forEach(([k,v])=>{
       if(!/^\d{4}-\d{2}-\d{2}$/.test(k) || !v || typeof v.goal!=='string') return;
-      const clean={date:k, goal:v.goal, reflection:typeof v.reflection==='string'?v.reflection:'', createdAt:+v.createdAt||Date.now(), updatedAt:+v.updatedAt||Date.now()};
+      const sc=Number.isInteger(v.score)&&v.score>=1&&v.score<=5?v.score:null;
+      const rp=v.rp&&typeof v.rp==='object'?{good:String(v.rp.good||''),shaky:String(v.rp.shaky||''),next:String(v.rp.next||'')}:null;
+      const clean={date:k, goal:v.goal, score:sc, rp, reflection:typeof v.reflection==='string'?v.reflection:'', createdAt:+v.createdAt||Date.now(), updatedAt:+v.updatedAt||Date.now()};
       if(!next[k]){ next[k]=clean; added++; } else if(clean.updatedAt>(next[k].updatedAt||0)){ next[k]=clean; updated++; }
     });
     if(!store.set(ENTRIES_KEY,next)) throw 1;
@@ -543,7 +574,7 @@ async function exportReport(){
   [...keys].reverse().forEach(k=>{
     const e=entries[k], d=parseKey(k), m=`${d.getFullYear()}년 ${d.getMonth()+1}월`;
     if(m!==lastM){ list+=`<div class="month">${m}</div>`; lastM=m; }
-    list+=`<div class="entry"><div class="top"><span>${d.getDate()}일 ${WD[d.getDay()]}요일</span></div>
+    list+=`<div class="entry"><div class="top"><span>${d.getDate()}일 ${WD[d.getDay()]}요일${dotsOf(e.score)}</span></div>
       <div class="g">${esc(e.goal)}</div>${e.reflection?`<div class="r">🌙 ${esc(e.reflection)}</div>`:''}</div>`;
   });
   const range = `${labelOf(keys[0])} ~ ${labelOf(keys[keys.length-1])}`;
