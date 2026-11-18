@@ -194,13 +194,25 @@ mark{background:var(--acc3);color:inherit;border-radius:3px}
     <input class="search" id="q" placeholder="단어로 찾기 (예: 집중, 기쁘게)">
     <div id="logList"></div>
     <div class="card" style="margin-top:22px">
-      <h2>💾 백업</h2>
-      <p class="hint">기록은 이 기기 안에만 저장돼요. 휴대폰을 바꾸거나 앱·브라우저 데이터를 지우기 전에 백업 파일을 저장해 두세요. 다른 기기에서 '불러오기'하면 이어서 쓸 수 있어요.</p>
+      <h2>🔄 다른 브라우저·기기로 옮기기</h2>
+      <p class="hint">기록은 지금 쓰는 브라우저 안에만 저장돼요. Chrome 앱과 삼성 인터넷처럼 브라우저가 다르면 기록도 따로예요. 아래 방법으로 옮기면 두 곳의 기록이 합쳐져요(같은 날짜는 나중에 고친 쪽이 남아요).</p>
+      <div class="rq" style="margin-top:4px">① 기록이 많은 쪽에서</div>
       <div class="row">
-        <button class="btn ghost" id="bkOut" style="margin:0">백업 파일 저장</button>
-        <label class="btn ghost" style="margin:0;display:inline-block">백업 불러오기<input type="file" id="bkIn" accept=".json,application/json" hidden></label>
+        <button class="btn small" id="cpOut" style="margin:0">📋 기록 복사하기</button>
+        <button class="btn ghost small" id="bkOut" style="margin:0">백업 파일 저장</button>
+      </div>
+      <textarea id="cpShow" class="hidden" readonly style="min-height:90px;font:12px/1.5 var(--sans);margin-top:8px"></textarea>
+      <div class="rq">② 옮겨 받을 쪽에서</div>
+      <div class="row">
+        <button class="btn small" id="cpInOpen" style="margin:0">📥 붙여넣어 가져오기</button>
+        <label class="btn ghost small" style="margin:0;display:inline-block">백업 파일 불러오기<input type="file" id="bkIn" accept=".json,application/json" hidden></label>
+      </div>
+      <div id="cpInBox" class="hidden" style="margin-top:8px">
+        <textarea id="cpIn" placeholder="복사한 기록을 여기에 길게 눌러 붙여넣기" style="min-height:90px;font:12px/1.5 var(--sans)"></textarea>
+        <button class="btn" id="cpInGo">가져오기</button>
       </div>
       <div class="status" id="bkStatus"></div>
+      <p class="hint" style="margin-top:8px">같은 휴대폰이면 ①에서 복사하고 ②에 바로 붙여넣으면 돼요. 다른 휴대폰이면 카카오톡 '나와의 채팅'에 붙여넣어 보낸 뒤, 거기서 다시 복사하면 돼요.</p>
     </div>
   </section>
 
@@ -635,32 +647,51 @@ $('#bkOut').onclick = ()=>{
   if(!n){ $('#bkStatus').textContent='아직 백업할 기록이 없어요.'; return; }
   shareOrSave(`하루목표_백업_${todayKey()}.json`, JSON.stringify({app:'daily-goals',version:1,exportedAt:new Date().toISOString(),entries,history:hist},null,1), 'application/json', $('#bkStatus'), null);
 };
+function importData(data){
+  if(!data || data.app!=='daily-goals' || typeof data.entries!=='object' || !data.entries) throw new Error('format');
+  const next={...entries}; let added=0, updated=0;
+  Object.entries(data.entries).forEach(([k,v])=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(k) || !v || typeof v.goal!=='string') return;
+    const sc=Number.isInteger(v.score)&&v.score>=1&&v.score<=5?v.score:null;
+    const rp=v.rp&&typeof v.rp==='object'?{good:String(v.rp.good||''),shaky:String(v.rp.shaky||''),next:String(v.rp.next||'')}:null;
+    const clean={date:k, goal:v.goal, score:sc, rp, reflection:typeof v.reflection==='string'?v.reflection:'', createdAt:+v.createdAt||Date.now(), updatedAt:+v.updatedAt||Date.now()};
+    if(!next[k]){ next[k]=clean; added++; } else if(clean.updatedAt>(next[k].updatedAt||0)){ next[k]=clean; updated++; }
+  });
+  if(!store.set(ENTRIES_KEY,next)) throw new Error('save');
+  entries=next;
+  const incoming = Array.isArray(data.history) ? data.history.slice() : [];
+  if(data.analysis && typeof data.analysis.text==='string') incoming.push({id:'h'+(+data.analysis.at||Date.now()), at:+data.analysis.at||Date.now(), ai:data.analysis.text, snap:{count:+data.analysis.count||0,from:'',to:'',themes:[],words:[],approach:null,avg:null,reflected:0}});
+  const ids=new Set(hist.map(h=>h.id)); let hAdded=0;
+  incoming.forEach(h=>{ if(h && typeof h.id==='string' && !ids.has(h.id) && h.snap && typeof h.snap==='object'){
+    hist.push({id:h.id, at:+h.at||Date.now(), ai:typeof h.ai==='string'?h.ai:null, snap:{count:+h.snap.count||0, from:String(h.snap.from||''), to:String(h.snap.to||''),
+      themes:Array.isArray(h.snap.themes)?h.snap.themes.slice(0,5).map(x=>[String(x[0]),+x[1]||0]):[], words:Array.isArray(h.snap.words)?h.snap.words.slice(0,10).map(String):[],
+      approach:h.snap.approach==null?null:+h.snap.approach, avg:h.snap.avg==null?null:+h.snap.avg, reflected:+h.snap.reflected||0}}); ids.add(h.id); hAdded++; } });
+  hist.sort((a,b)=>b.at-a.at); saveHistory(); lastAnalysis=latestAI();
+  renderAll(); renderLog(); renderAI();
+  return `가져왔어요 ✓ 새 기록 ${added}개, 갱신 ${updated}개${hAdded?`, 분석 ${hAdded}개`:''}`;
+}
 $('#bkIn').onchange = async e=>{
   const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ $('#bkStatus').textContent = importData(JSON.parse(await f.text())); }
+  catch(err){ $('#bkStatus').textContent='이 앱의 백업 파일이 아니거나 읽을 수 없어요.'; }
+};
+$('#cpOut').onclick = async ()=>{
+  if(!Object.keys(entries).length){ $('#bkStatus').textContent='아직 옮길 기록이 없어요.'; return; }
+  const text = JSON.stringify({app:'daily-goals',version:1,exportedAt:new Date().toISOString(),entries,history:hist});
+  try{ await navigator.clipboard.writeText(text); $('#cpShow').classList.add('hidden');
+       $('#bkStatus').textContent=`기록 ${Object.keys(entries).length}개를 복사했어요. 옮겨 받을 쪽에서 ②를 눌러 붙여넣으세요.`; }
+  catch(e){ $('#cpShow').value=text; $('#cpShow').classList.remove('hidden'); $('#cpShow').focus(); $('#cpShow').select();
+       $('#bkStatus').textContent='자동 복사가 안 돼요. 아래 글을 길게 눌러 전체 선택 후 복사해 주세요.'; }
+};
+$('#cpInOpen').onclick = ()=>{ $('#cpInBox').classList.toggle('hidden'); if(!$('#cpInBox').classList.contains('hidden')) $('#cpIn').focus(); };
+$('#cpInGo').onclick = ()=>{
+  const raw=$('#cpIn').value.trim();
+  if(!raw){ $('#bkStatus').textContent='붙여넣은 내용이 없어요.'; return; }
   try{
-    const data=JSON.parse(await f.text());
-    if(!data || data.app!=='daily-goals' || typeof data.entries!=='object') throw 0;
-    const next={...entries}; let added=0, updated=0;
-    Object.entries(data.entries).forEach(([k,v])=>{
-      if(!/^\d{4}-\d{2}-\d{2}$/.test(k) || !v || typeof v.goal!=='string') return;
-      const sc=Number.isInteger(v.score)&&v.score>=1&&v.score<=5?v.score:null;
-      const rp=v.rp&&typeof v.rp==='object'?{good:String(v.rp.good||''),shaky:String(v.rp.shaky||''),next:String(v.rp.next||'')}:null;
-      const clean={date:k, goal:v.goal, score:sc, rp, reflection:typeof v.reflection==='string'?v.reflection:'', createdAt:+v.createdAt||Date.now(), updatedAt:+v.updatedAt||Date.now()};
-      if(!next[k]){ next[k]=clean; added++; } else if(clean.updatedAt>(next[k].updatedAt||0)){ next[k]=clean; updated++; }
-    });
-    if(!store.set(ENTRIES_KEY,next)) throw 1;
-    entries=next;
-    const incoming = Array.isArray(data.history) ? data.history : [];
-    if(data.analysis && typeof data.analysis.text==='string') incoming.push({id:'h'+(+data.analysis.at||Date.now()), at:+data.analysis.at||Date.now(), ai:data.analysis.text, snap:{count:+data.analysis.count||0,from:'',to:'',themes:[],words:[],approach:null,avg:null,reflected:0}});
-    const ids=new Set(hist.map(h=>h.id));
-    incoming.forEach(h=>{ if(h && typeof h.id==='string' && !ids.has(h.id) && h.snap && typeof h.snap==='object'){
-      hist.push({id:h.id, at:+h.at||Date.now(), ai:typeof h.ai==='string'?h.ai:null, snap:{count:+h.snap.count||0, from:String(h.snap.from||''), to:String(h.snap.to||''),
-        themes:Array.isArray(h.snap.themes)?h.snap.themes.slice(0,5).map(x=>[String(x[0]),+x[1]||0]):[], words:Array.isArray(h.snap.words)?h.snap.words.slice(0,10).map(String):[],
-        approach:h.snap.approach==null?null:+h.snap.approach, avg:h.snap.avg==null?null:+h.snap.avg, reflected:+h.snap.reflected||0}}); ids.add(h.id); } });
-    hist.sort((a,b)=>b.at-a.at); saveHistory(); lastAnalysis=latestAI();
-    $('#bkStatus').textContent=`불러왔어요 ✓ 새 기록 ${added}개, 갱신 ${updated}개`;
-    renderAll(); renderLog();
-  }catch(err){ $('#bkStatus').textContent='이 앱의 백업 파일이 아니거나 읽을 수 없어요.'; }
+    const st=raw.indexOf('{'), en=raw.lastIndexOf('}');   // 메신저에서 앞뒤에 붙은 글자는 무시
+    $('#bkStatus').textContent = importData(JSON.parse(raw.slice(st,en+1)));
+    $('#cpIn').value=''; $('#cpInBox').classList.add('hidden');
+  }catch(err){ $('#bkStatus').textContent='읽을 수 없는 내용이에요. ①에서 복사한 내용 전체를 그대로 붙여넣어 주세요.'; }
 };
 
 /* ---------- export ---------- */

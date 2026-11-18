@@ -1,6 +1,6 @@
 // 하루 목표 기록장 — 오프라인에서도 열리도록 앱 파일을 캐시합니다.
 // 앱을 수정해 다시 올릴 때는 아래 버전 숫자를 올려 주세요.
-const CACHE = 'daily-goals-v4';
+const CACHE = 'daily-goals-v5';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
